@@ -5,6 +5,8 @@ authors = ["Luca Barbato <lu_zero@gentoo.org>"]
 edition = "2018"
 description = "High level wait4 abstraction"
 license = "MIT"
+homepage = "https://github.com/lu-zero/wait4-rs"
+repository = "https://github.com/lu-zero/wait4-rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
