@@ -15,4 +15,9 @@ let r = child.wait4().unwrap();
 ## Status
 
 - [x] Unix-like using `libc::wait4`
-- [ ] Windows using `winapi::um::processthreadsapi::GetProcessTimes` and `winapi::um::psapi::GetProcessMemoryInfo`.
+- [x] Windows using `winapi::um::processthreadsapi::GetProcessTimes` and `winapi::um::psapi::GetProcessMemoryInfo`.
+
+
+## License
+
+[MIT](https://spdx.org/licenses/MIT), the windows code is partially from [hyperfine](https://github.com/sharkdp/hyperfine).
