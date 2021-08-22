@@ -6,8 +6,9 @@ use std::{io, process::Child};
 
 use libc::timeval;
 
+#[allow(clippy::useless_conversion)]
 fn timeval_to_duration(val: timeval) -> Duration {
-    let v = i64::from(val.tv_sec) * 1000_000 + i64::from(val.tv_usec);
+    let v = i64::from(val.tv_sec) * 1_000_000 + i64::from(val.tv_usec);
     Duration::from_micros(v as u64)
 }
 
