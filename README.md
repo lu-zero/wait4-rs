@@ -14,9 +14,9 @@ let r = child.wait4().unwrap();
 
 ## Status
 
-- [x] Unix-like using `libc::wait4`
+- [x] Unix-like using `libc::wait4` or `libc::getrusage`
 - [x] Windows using `winapi::um::processthreadsapi::GetProcessTimes` and `winapi::um::psapi::GetProcessMemoryInfo`.
-
+- [ ] Proper documentation
 
 ## License
 
