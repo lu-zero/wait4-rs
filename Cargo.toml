@@ -1,6 +1,6 @@
 [package]
 name = "wait4"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Luca Barbato <lu_zero@gentoo.org>"]
 edition = "2018"
 description = "High level wait4 abstraction"
