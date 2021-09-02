@@ -1,4 +1,6 @@
 # Rust idiomatic binding to wait4
+[![crates.io](https://img.shields.io/crates/v/wait4.svg)](https://crates.io/crates/wait4)
+[![docs.rs](https://docs.rs/mio/badge.svg)](https://docs.rs/wait4)
 
 ``` rust
 use std::process::Command;
