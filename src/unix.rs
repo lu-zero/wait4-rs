@@ -33,7 +33,7 @@ cfg_if::cfg_if! {
                     let maxrss = if cfg!(target_os = "macos") || cfg!(target_os = "ios") {
                         rusage.ru_maxrss
                     } else {
-                        rusage.ru_maxrss / 1024
+                        rusage.ru_maxrss * 1024
                     };
 
                     Ok(ResUse {
@@ -63,7 +63,7 @@ cfg_if::cfg_if! {
             let maxrss = if cfg!(target_os = "macos") || cfg!(target_os = "ios") {
                 rusage.ru_maxrss
             } else {
-                rusage.ru_maxrss / 1024
+                rusage.ru_maxrss * 1024
             };
             ResourceUsage {
                 utime: timeval_to_duration(rusage.ru_utime),
