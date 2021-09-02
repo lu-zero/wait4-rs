@@ -1,6 +1,6 @@
 # Rust idiomatic binding to wait4
 
-```
+``` rust
 use std::process::Command;
 use wait4::Wait4;
 
