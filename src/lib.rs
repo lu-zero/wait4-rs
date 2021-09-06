@@ -13,9 +13,9 @@ pub struct ResourceUsage {
     ///
     /// Time spent in kernel-mode
     pub stime: Duration,
-    /// Maximum resident set size
+    /// Maximum resident set size, in bytes.
     ///
-    /// Expressed in bytes when available.
+    /// Zero if not available on the platform.
     pub maxrss: u64,
 }
 
