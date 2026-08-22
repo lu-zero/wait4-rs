@@ -18,10 +18,22 @@ let r = child.wait4().unwrap();
 [`Child::wait`](https://doc.rust-lang.org/std/process/struct.Child.html#method.wait)
 it cannot be called more than once on the same child.
 
-`try_wait4()` is the non-blocking counterpart (`WNOHANG` on Unix). Once it
-returns `Ok(Some(_))` the child is reaped; do not wait on it again.
-On Unix, `try_wait4_pid` does the same for a raw child pid (useful when the
-handle is a tokio `Child`).
+`try_wait4()` is the non-blocking counterpart (`WNOHANG` on Unix), left
+open so a probe doesn't close pipes out from under a still-running child.
+Once it returns `Ok(Some(_))` the child is reaped: do not `wait`, `wait4`,
+`try_wait4`, or send it a signal (e.g. `kill`) again — the PID may already
+be recycled. On Unix, `try_wait4_pid` does the same for a raw child pid
+(useful when the handle is a tokio `Child`); it rejects a pid of `0`,
+which `wait4(2)` would otherwise interpret as "any child in this process's
+process group".
+
+## Upgrading from 0.1
+
+`wait4()` now takes `self` by value instead of `&mut self`, so it reaps
+the child, closes stdin first, and cannot be called again — the fix for
+[#3](https://github.com/lu-zero/wait4-rs/issues/3). Most call sites don't
+need to change; drop any now-unnecessary `mut` on the `Child` binding.
+`try_wait4`/`try_wait4_pid` are new in 0.2 for non-blocking polling loops.
 
 ## Status
 
