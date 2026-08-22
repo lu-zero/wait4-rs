@@ -11,8 +11,8 @@ fn timeval_to_duration(val: timeval) -> Duration {
     Duration::from_micros(v as u64)
 }
 
-cfg_if::cfg_if! {
-    if #[cfg(any(target_os = "macos", target_os = "linux", target_os = "freebsd"))] {
+std::cfg_select! {
+    any(target_os = "macos", target_os = "linux", target_os = "freebsd") => {
         use std::os::unix::process::ExitStatusExt;
 
         impl Wait4 for Child {
@@ -47,7 +47,8 @@ cfg_if::cfg_if! {
                 }
             }
         }
-    } else {
+    }
+    _ => {
         fn get_resource_usage(for_children: bool) -> ResourceUsage {
             let who = if for_children {
                 libc::RUSAGE_CHILDREN

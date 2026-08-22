@@ -50,14 +50,16 @@ pub trait Wait4 {
     fn wait4(self) -> io::Result<ResUse>;
 }
 
-cfg_if::cfg_if! {
-    if #[cfg(windows)] {
+std::cfg_select! {
+    windows => {
         mod windows;
         pub use windows::*;
-    } else if #[cfg(unix)] {
+    }
+    unix => {
         mod unix;
         pub use unix::*;
-    } else {
+    }
+    _ => {
         impl Wait4 for std::process::Child {
             fn wait4(self) -> io::Result<ResUse> {
                 Err(io::ErrorKind::Unsupported.into())
