@@ -18,6 +18,11 @@ let r = child.wait4().unwrap();
 [`Child::wait`](https://doc.rust-lang.org/std/process/struct.Child.html#method.wait)
 it cannot be called more than once on the same child.
 
+`try_wait4()` is the non-blocking counterpart (`WNOHANG` on Unix). Once it
+returns `Ok(Some(_))` the child is reaped; do not wait on it again.
+On Unix, `try_wait4_pid` does the same for a raw child pid (useful when the
+handle is a tokio `Child`).
+
 ## Status
 
 - [x] Unix-like using `libc::wait4` or `libc::getrusage`
