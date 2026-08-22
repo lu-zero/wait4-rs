@@ -26,14 +26,13 @@ use std::os::windows::io::AsRawHandle;
 use std::time::Duration;
 use std::{io, process::Child};
 
-use winapi::um::processthreadsapi::GetProcessTimes;
-use winapi::um::psapi::GetProcessMemoryInfo;
-use winapi::um::psapi::PROCESS_MEMORY_COUNTERS;
-use winapi::um::winnt::HANDLE;
+use windows_sys::Win32::Foundation::HANDLE;
+use windows_sys::Win32::System::ProcessStatus::{GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS};
+use windows_sys::Win32::System::Threading::GetProcessTimes;
 
 impl Wait4 for Child {
     fn wait4(mut self) -> io::Result<ResUse> {
-        let handle = self.as_raw_handle();
+        let handle = self.as_raw_handle() as HANDLE;
         let status = self.wait()?;
 
         let (utime_nsec, stime_nsec) = unsafe {
@@ -42,7 +41,7 @@ impl Wait4 for Child {
             let mut kernel_time = mem::zeroed();
             let mut user_time = mem::zeroed();
             let res = GetProcessTimes(
-                handle as HANDLE,
+                handle,
                 &mut _ctime,
                 &mut _etime,
                 &mut kernel_time,
@@ -67,7 +66,7 @@ impl Wait4 for Child {
         let maxrss = unsafe {
             let mut pmc = mem::zeroed();
             let res = GetProcessMemoryInfo(
-                handle as HANDLE,
+                handle,
                 &mut pmc,
                 std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32,
             );
