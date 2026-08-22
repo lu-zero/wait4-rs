@@ -8,6 +8,7 @@ on:
 jobs:
   test:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
@@ -20,3 +21,26 @@ jobs:
       - run: cargo test
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo fmt --check
+
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95
+      - run: cargo build --all-targets
+      - run: cargo test
+
+  freebsd:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: vmactions/freebsd-vm@v1
+        with:
+          usesh: true
+          prepare: |
+            pkg install -y curl
+            curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable --profile minimal
+          run: |
+            . "$HOME/.cargo/env"
+            cargo build --all-targets
+            cargo test
