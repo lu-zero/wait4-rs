@@ -53,11 +53,9 @@ pub trait Wait4 {
 std::cfg_select! {
     windows => {
         mod windows;
-        pub use windows::*;
     }
     unix => {
         mod unix;
-        pub use unix::*;
     }
     _ => {
         impl Wait4 for std::process::Child {
