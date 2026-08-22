@@ -40,8 +40,14 @@ pub trait Wait4 {
     /// closed before waiting, refer to [`wait`] for the rationale
     /// for it.
     ///
+    /// Unlike [`wait`], `wait4` takes the child by value: the child has
+    /// already been reaped by the time this returns, so [`wait`] or
+    /// `wait4` cannot be called again on it. Reusing a process ID after
+    /// it has already been reaped could otherwise end up waiting on an
+    /// unrelated, recycled process.
+    ///
     /// [`wait`]: std::process::Child::wait
-    fn wait4(&mut self) -> io::Result<ResUse>;
+    fn wait4(self) -> io::Result<ResUse>;
 }
 
 cfg_if::cfg_if! {
@@ -53,7 +59,7 @@ cfg_if::cfg_if! {
         pub use unix::*;
     } else {
         impl Wait4 for std::process::Child {
-            fn wait4(&mut self) -> io::Result<ResUse> {
+            fn wait4(self) -> io::Result<ResUse> {
                 Err(io::ErrorKind::Unsupported.into())
             }
         }

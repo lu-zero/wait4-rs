@@ -16,7 +16,7 @@ cfg_if::cfg_if! {
         use std::os::unix::process::ExitStatusExt;
 
         impl Wait4 for Child {
-            fn wait4(&mut self) -> io::Result<ResUse> {
+            fn wait4(mut self) -> io::Result<ResUse> {
                 drop(self.stdin.take());
                 let pid = self.id() as i32;
                 let mut status = 0;
@@ -91,7 +91,7 @@ cfg_if::cfg_if! {
         }
 
         impl Wait4 for Child {
-            fn wait4(&mut self) -> io::Result<ResUse> {
+            fn wait4(mut self) -> io::Result<ResUse> {
                 self.wait().map(|status| {
                     let rusage = ResourceUsage::for_children();
                     ResUse { status, rusage }

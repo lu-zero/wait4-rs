@@ -32,7 +32,7 @@ use winapi::um::psapi::PROCESS_MEMORY_COUNTERS;
 use winapi::um::winnt::HANDLE;
 
 impl Wait4 for Child {
-    fn wait4(&mut self) -> io::Result<ResUse> {
+    fn wait4(mut self) -> io::Result<ResUse> {
         let handle = self.as_raw_handle();
         let status = self.wait()?;
 

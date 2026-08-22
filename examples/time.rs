@@ -16,7 +16,7 @@ fn main() {
     let (_, args) = command.split_at(2);
 
     let now = std::time::Instant::now();
-    let mut child = Command::new(cmd).args(args).spawn().unwrap();
+    let child = Command::new(cmd).args(args).spawn().unwrap();
 
     let r = child.wait4().unwrap();
     let elapsed = now.elapsed();
