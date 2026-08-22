@@ -3,7 +3,7 @@ use std::process::ExitStatus;
 use std::time::Duration;
 
 /// Resources used by a process
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct ResourceUsage {
     /// User CPU time used
     ///
@@ -20,7 +20,7 @@ pub struct ResourceUsage {
 }
 
 /// Resources used by a process and its exit status
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct ResUse {
     /// Same as the one returned by [`wait`].
     ///
@@ -53,6 +53,17 @@ pub trait Wait4 {
     ///
     /// [`wait`]: std::process::Child::wait
     fn wait4(self) -> io::Result<ResUse>;
+
+    /// As for [`try_wait`], does not block. `Ok(None)` means the child is
+    /// still running.
+    ///
+    /// Once this returns `Ok(Some(_))` the child has been reaped. Do not
+    /// call [`wait`], [`Self::wait4`], or `try_wait4` again on the same
+    /// `Child`: the PID may already have been recycled.
+    ///
+    /// [`try_wait`]: std::process::Child::try_wait
+    /// [`wait`]: std::process::Child::wait
+    fn try_wait4(&mut self) -> io::Result<Option<ResUse>>;
 }
 
 std::cfg_select! {
@@ -61,10 +72,15 @@ std::cfg_select! {
     }
     unix => {
         mod unix;
+        pub use unix::try_wait4_pid;
     }
     _ => {
         impl Wait4 for std::process::Child {
             fn wait4(self) -> io::Result<ResUse> {
+                Err(io::ErrorKind::Unsupported.into())
+            }
+
+            fn try_wait4(&mut self) -> io::Result<Option<ResUse>> {
                 Err(io::ErrorKind::Unsupported.into())
             }
         }

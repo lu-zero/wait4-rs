@@ -30,60 +30,73 @@ use windows_sys::Win32::Foundation::HANDLE;
 use windows_sys::Win32::System::ProcessStatus::{GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS};
 use windows_sys::Win32::System::Threading::GetProcessTimes;
 
+fn resource_usage(handle: HANDLE) -> ResourceUsage {
+    let (utime_nsec, stime_nsec) = unsafe {
+        let mut _ctime = mem::zeroed();
+        let mut _etime = mem::zeroed();
+        let mut kernel_time = mem::zeroed();
+        let mut user_time = mem::zeroed();
+        let res = GetProcessTimes(
+            handle,
+            &mut _ctime,
+            &mut _etime,
+            &mut kernel_time,
+            &mut user_time,
+        );
+
+        // GetProcessTimes will exit with non-zero if success as per:
+        // https://msdn.microsoft.com/en-us/library/windows/desktop/ms683223(v=vs.85).aspx
+        if res != 0 {
+            let user =
+                (((user_time.dwHighDateTime as i64) << 32) + user_time.dwLowDateTime as i64) * 100;
+            let kernel = (((kernel_time.dwHighDateTime as i64) << 32)
+                + kernel_time.dwLowDateTime as i64)
+                * 100;
+            (user as u64, kernel as u64)
+        } else {
+            (0, 0)
+        }
+    };
+
+    let maxrss = unsafe {
+        let mut pmc = mem::zeroed();
+        let res = GetProcessMemoryInfo(
+            handle,
+            &mut pmc,
+            std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32,
+        );
+        if res != 0 {
+            pmc.PeakWorkingSetSize as u64
+        } else {
+            0
+        }
+    };
+
+    ResourceUsage {
+        utime: Duration::from_nanos(utime_nsec),
+        stime: Duration::from_nanos(stime_nsec),
+        maxrss,
+    }
+}
+
 impl Wait4 for Child {
     fn wait4(mut self) -> io::Result<ResUse> {
         let handle = self.as_raw_handle() as HANDLE;
         let status = self.wait()?;
-
-        let (utime_nsec, stime_nsec) = unsafe {
-            let mut _ctime = mem::zeroed();
-            let mut _etime = mem::zeroed();
-            let mut kernel_time = mem::zeroed();
-            let mut user_time = mem::zeroed();
-            let res = GetProcessTimes(
-                handle,
-                &mut _ctime,
-                &mut _etime,
-                &mut kernel_time,
-                &mut user_time,
-            );
-
-            // GetProcessTimes will exit with non-zero if success as per:
-            // https://msdn.microsoft.com/en-us/library/windows/desktop/ms683223(v=vs.85).aspx
-            if res != 0 {
-                let user = (((user_time.dwHighDateTime as i64) << 32)
-                    + user_time.dwLowDateTime as i64)
-                    * 100;
-                let kernel = (((kernel_time.dwHighDateTime as i64) << 32)
-                    + kernel_time.dwLowDateTime as i64)
-                    * 100;
-                (user as u64, kernel as u64)
-            } else {
-                (0, 0)
-            }
-        };
-
-        let maxrss = unsafe {
-            let mut pmc = mem::zeroed();
-            let res = GetProcessMemoryInfo(
-                handle,
-                &mut pmc,
-                std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32,
-            );
-            if res != 0 {
-                pmc.PeakWorkingSetSize as u64
-            } else {
-                0
-            }
-        };
-
         Ok(ResUse {
             status,
-            rusage: ResourceUsage {
-                utime: Duration::from_nanos(utime_nsec),
-                stime: Duration::from_nanos(stime_nsec),
-                maxrss,
-            },
+            rusage: resource_usage(handle),
         })
+    }
+
+    fn try_wait4(&mut self) -> io::Result<Option<ResUse>> {
+        let handle = self.as_raw_handle() as HANDLE;
+        match self.try_wait()? {
+            None => Ok(None),
+            Some(status) => Ok(Some(ResUse {
+                status,
+                rusage: resource_usage(handle),
+            })),
+        }
     }
 }
