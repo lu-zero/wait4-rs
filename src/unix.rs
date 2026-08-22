@@ -11,18 +11,37 @@ fn timeval_to_duration(val: timeval) -> Duration {
     Duration::from_micros(v as u64)
 }
 
-std::cfg_select! {
-    any(target_os = "macos", target_os = "linux", target_os = "freebsd") => {
-        use std::os::unix::process::ExitStatusExt;
+/// `ru_maxrss` is KiB on Linux/Android/*BSD, but already bytes on Apple's
+/// kernels (macOS/iOS/tvOS/watchOS all deviate from the rest of the BSD
+/// family here).
+fn maxrss_bytes(maxrss: i64) -> u64 {
+    let v = maxrss.max(0) as u64;
+    if cfg!(any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "tvos",
+        target_os = "watchos"
+    )) {
+        v
+    } else {
+        v.saturating_mul(1024)
+    }
+}
 
-        fn maxrss_bytes(maxrss: i64) -> u64 {
-            let v = maxrss.max(0) as u64;
-            if cfg!(target_os = "macos") || cfg!(target_os = "ios") {
-                v
-            } else {
-                v.saturating_mul(1024)
-            }
-        }
+std::cfg_select! {
+    any(
+        target_os = "linux",
+        target_os = "android",
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "tvos",
+        target_os = "watchos",
+        target_os = "freebsd",
+        target_os = "dragonfly",
+        target_os = "netbsd",
+        target_os = "openbsd",
+    ) => {
+        use std::os::unix::process::ExitStatusExt;
 
         fn resuse_from(status: libc::c_int, rusage: libc::rusage) -> ResUse {
             ResUse {
@@ -62,8 +81,23 @@ std::cfg_select! {
         /// Non-blocking `wait4` for a child pid of this process.
         ///
         /// `Ok(None)` means the child is still running. Once `Ok(Some(_))`
-        /// is returned the pid has been reaped; do not wait on it again.
+        /// is returned the pid has been reaped: do not `wait`, `wait4`,
+        /// `try_wait4`, `try_wait4_pid`, or send it a signal (e.g. `kill`)
+        /// again. The pid may already have been recycled by the OS onto an
+        /// unrelated process.
+        ///
+        /// `pid` must identify a specific child of this process; `0` is
+        /// rejected rather than silently waiting for *any* child in this
+        /// process's process group, which is what `wait4(2)` does with a
+        /// pid of `0`.
         pub fn try_wait4_pid(pid: u32) -> io::Result<Option<ResUse>> {
+            if pid == 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "try_wait4_pid: pid 0 would wait for any child in this process's \
+                     process group, not one specific child",
+                ));
+            }
             wait4_pid(pid as i32, libc::WNOHANG)
         }
 
