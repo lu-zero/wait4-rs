@@ -26,7 +26,12 @@ pub struct ResUse {
     ///
     /// [`wait`]: std::process::Child::wait
     pub status: ExitStatus,
-    /// Resource used by the process and all its children
+    /// Resources used by the process.
+    ///
+    /// On Unix this includes descendants the process itself waited on
+    /// (`RUSAGE_CHILDREN` semantics). On Windows this covers only the
+    /// process itself, not further descendants it may spawn — see
+    /// [issue #1](https://github.com/lu-zero/wait4-rs/issues/1).
     pub rusage: ResourceUsage,
 }
 
