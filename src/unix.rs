@@ -116,67 +116,49 @@ std::cfg_select! {
         }
     }
     _ => {
-        fn get_resource_usage(for_children: bool) -> ResourceUsage {
-            let who = if for_children {
-                libc::RUSAGE_CHILDREN
-            } else {
-                libc::RUSAGE_SELF
-            };
-
+        // No native wait4(2) binding on this target: fall back to
+        // Child::wait/try_wait plus getrusage(RUSAGE_CHILDREN). Unlike the
+        // wait4(2) path above, RUSAGE_CHILDREN is *not* scoped to this one
+        // Child: it is the sum of every child this whole process has ever
+        // waited on. Concurrent children on this fallback will see mixed
+        // totals, not per-child figures.
+        fn resource_usage_children() -> io::Result<ResourceUsage> {
             let rusage = unsafe {
                 let mut rusage = std::mem::MaybeUninit::zeroed();
-                libc::getrusage(who, rusage.as_mut_ptr());
+                if libc::getrusage(libc::RUSAGE_CHILDREN, rusage.as_mut_ptr()) < 0 {
+                    return Err(io::Error::last_os_error());
+                }
                 rusage.assume_init()
             };
-            let maxrss = if cfg!(target_os = "macos") || cfg!(target_os = "ios") {
-                rusage.ru_maxrss
-            } else {
-                rusage.ru_maxrss * 1024
-            };
-            ResourceUsage {
+            Ok(ResourceUsage {
                 utime: timeval_to_duration(rusage.ru_utime),
                 stime: timeval_to_duration(rusage.ru_stime),
-                maxrss: maxrss as u64,
-            }
-        }
-
-        impl ResourceUsage {
-            /// Return resource usage statistics for all children of the calling process
-            /// that have terminated and been waited for.
-            /// These statistics will include the resources used by grandchildren,
-            /// and further removed descendants, if all of the intervening descendants waited
-            /// on their terminated children.
-            fn for_children() -> ResourceUsage {
-                get_resource_usage(true)
-            }
-            /*
-            /// Return resource usage statistics for the calling process, which is the sum
-            /// of resources used by all threads in the process.
-            fn for_self() -> ResourceUsage {
-                get_resource_usage(false)
-            }
-            */
+                #[allow(clippy::unnecessary_cast)]
+                maxrss: maxrss_bytes(rusage.ru_maxrss as i64),
+            })
         }
 
         impl Wait4 for Child {
             fn wait4(mut self) -> io::Result<ResUse> {
-                self.wait().map(|status| {
-                    let rusage = ResourceUsage::for_children();
-                    ResUse { status, rusage }
-                })
+                let status = self.wait()?;
+                let rusage = resource_usage_children()?;
+                Ok(ResUse { status, rusage })
             }
 
             fn try_wait4(&mut self) -> io::Result<Option<ResUse>> {
-                self.try_wait().map(|status| {
-                    status.map(|status| ResUse {
-                        status,
-                        rusage: ResourceUsage::for_children(),
-                    })
-                })
+                match self.try_wait()? {
+                    None => Ok(None),
+                    Some(status) => {
+                        let rusage = resource_usage_children()?;
+                        Ok(Some(ResUse { status, rusage }))
+                    }
+                }
             }
         }
 
-        /// No native `wait4`; fall back to [`Child::try_wait`] + `RUSAGE_CHILDREN`.
+        /// No native `wait4` binding on this target, and `RUSAGE_CHILDREN`
+        /// cannot be scoped to an arbitrary pid at all (it is process-wide,
+        /// not per-child), so there is no honest value to return here.
         pub fn try_wait4_pid(_pid: u32) -> io::Result<Option<ResUse>> {
             Err(io::Error::new(
                 io::ErrorKind::Unsupported,
